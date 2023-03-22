@@ -1,5 +1,8 @@
 use std::fs::File;
 use std::io::{BufRead, BufReader};
+use rand::Rng;
+
+//Farm code
 
 pub struct Farm {
     field: Vec<Vec<char>>,
@@ -10,28 +13,40 @@ pub struct Farm {
 }
 
 impl Farm {
+    pub fn Copy(&self) -> Farm{
+        let new = Farm {field: self.field.clone(), max_cows: self.max_cows, num_cows: self.num_cows, space_left: self.space_left, size: self.size};
+        new
+    }
+
     pub fn get_field(&self) -> Vec<Vec<char>> {
         self.field.clone()
     }
 
-    pub fn add_cow(&mut self, loc: Vec<i32>) -> bool {
-        match self.field[loc[0 as usize] as usize][loc[1 as usize] as usize] {
+    pub fn add_cow(&mut self, loc: Vec<usize>) -> bool {
+        match self.field[loc[0 as usize]][loc[1 as usize]] {
             'C' | '@' | '#' => return false,
             '.' => {}
             _ => panic!("Invalid Symbol"),
         }
-        self.field[loc[0 as usize] as usize][loc[1 as usize] as usize] = 'C';
+        self.field[loc[0 as usize]][loc[1 as usize]] = 'C';
+        self.space_left -= 1;
         return true;
     }
 
-    pub fn remove_cow(&mut self, loc: Vec<i32>) -> bool {
-        false
+    pub fn remove_cow(&mut self, loc: Vec<usize>) -> bool {
+        match self.field[loc[0 as usize]][loc[1 as usize]] {
+            '.' | '@' | '#' => return false,
+            'C' => {}
+            _ => panic!("Invalid Symbol"),
+        }
+        self.field[loc[0 as usize]][loc[1 as usize]] = '.';
+        self.space_left += 1;
+        return true;
     }
 }
 
 pub fn read_file(path: String) -> Farm {
     let mut field: Vec<Vec<char>> = Vec::new();
-    let mut score: i32;
     let max_cows: i32;
     let mut num_cows: i32;
     let mut space_left: i32;
@@ -190,4 +205,20 @@ pub fn score_farm(f: Farm) -> i32 {
     }
 
     sum
+}
+
+//AI code
+
+pub struct Intel {
+
+}
+
+impl Intel {
+    pub fn random_move(board: &Farm) -> Vec<usize> {
+        let mut rng = rand::thread_rng();
+        let mut res: Vec<usize> = Vec::new();
+        res.push(rng.gen_range(0..board.size));
+        res.push(rng.gen_range(0..board.size));
+        res
+    }
 }
