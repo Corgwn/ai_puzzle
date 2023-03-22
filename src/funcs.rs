@@ -1,6 +1,7 @@
+use core::fmt;
+use rand::Rng;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
-use rand::Rng;
 
 //Farm code
 
@@ -13,8 +14,14 @@ pub struct Farm {
 }
 
 impl Farm {
-    pub fn Copy(&self) -> Farm{
-        let new = Farm {field: self.field.clone(), max_cows: self.max_cows, num_cows: self.num_cows, space_left: self.space_left, size: self.size};
+    pub fn Copy(&self) -> Farm {
+        let new = Farm {
+            field: self.field.clone(),
+            max_cows: self.max_cows,
+            num_cows: self.num_cows,
+            space_left: self.space_left,
+            size: self.size,
+        };
         new
     }
 
@@ -23,6 +30,9 @@ impl Farm {
     }
 
     pub fn add_cow(&mut self, loc: Vec<usize>) -> bool {
+        if self.space_left == 0 {
+            return false;
+        }
         match self.field[loc[0 as usize]][loc[1 as usize]] {
             'C' | '@' | '#' => return false,
             '.' => {}
@@ -34,6 +44,9 @@ impl Farm {
     }
 
     pub fn remove_cow(&mut self, loc: Vec<usize>) -> bool {
+        if self.space_left == self.max_cows {
+            return false;
+        }
         match self.field[loc[0 as usize]][loc[1 as usize]] {
             '.' | '@' | '#' => return false,
             'C' => {}
@@ -42,6 +55,26 @@ impl Farm {
         self.field[loc[0 as usize]][loc[1 as usize]] = '.';
         self.space_left += 1;
         return true;
+    }
+}
+
+impl fmt::Display for Farm {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        // Write strictly the first element into the supplied output
+        // stream: `f`. Returns `fmt::Result` which indicates whether the
+        // operation succeeded or failed. Note that `write!` uses syntax which
+        // is very similar to `println!`.
+        let mut temp1: String = String::new();
+        let mut temp2 = String::new();
+        for i in self.field.as_slice() {
+            for j in i {
+                temp1.push(*j);
+            }
+            temp1.push('\n');
+            temp2 += temp1.as_str();
+            temp1.clear();
+        }
+        write!(f, "{}", temp2)
     }
 }
 
@@ -86,7 +119,61 @@ pub fn read_file(path: String) -> Farm {
     farm
 }
 
-pub fn score_farm(f: Farm) -> i32 {
+fn in_bounds(f: &Farm, r: i32, c: i32) -> bool {
+    if r < 0 || r >= f.size as i32 || c < 0 || c >= f.size as i32 {
+        return false;
+    }
+    return true;
+}
+
+fn score_cow(f: &Farm, r: usize, c: usize) -> i32 {
+    let mut cow = false;
+    let mut hay = false;
+    let mut water = false;
+    let mut offsets: Vec<Vec<i32>> = Vec::new();
+    for i in -1..2 {
+        for j in -1..2 {
+            let mut temp = Vec::new();
+            if i == 0 && j == 0 {
+                continue;
+            }
+            temp.push(i);
+            temp.push(j);
+            offsets.push(temp);
+        }
+    }
+    let field = f.get_field();
+    let mut score = 0;
+    for offset in offsets {
+        let testx = r as i32 + offset[0];
+        let testy = r as i32 + offset[0];
+        if in_bounds(f, testx, testy) {
+            if field[testx as usize][testy as usize] == 'C' {
+                cow = true;
+            }
+            if (offset[0] == 0 || offset[1] == 0) {
+                if field[testx as usize][testy as usize] == '@' {
+                    hay = true;
+                } else if field[testx as usize][testy as usize] == '#' {
+                    water = true;
+                }
+            }
+        }
+    }
+    if cow {
+        score -= 3;
+    }
+    if hay {
+        if water {
+            score += 3;
+        } else {
+            score += 1;
+        }
+    }
+    return score;
+}
+
+pub fn score_farm(f: &Farm) -> i32 {
     let mut sum = 0;
     let field = f.get_field();
     for i in 0..f.size {
@@ -95,123 +182,18 @@ pub fn score_farm(f: Farm) -> i32 {
                 //If grass, water, or hay move on
                 '.' | '@' | '#' => continue,
                 //If cow, get score for this cow
-                'C' => {
-                    let right: bool;
-                    let left: bool;
-                    let top: bool;
-                    let bottom: bool;
-                    let max: usize = f.size - 1;
-                    let mut cow: bool = false;
-                    let mut hay: bool = false;
-                    let mut water: bool = false;
-
-                    match i {
-                        0 => {
-                            top = false;
-                            bottom = true;
-                        }
-                        max => {
-                            top = true;
-                            bottom = false;
-                        }
-                        _ => {
-                            top = true;
-                            bottom = true;
-                        }
-                    }
-                    match j {
-                        0 => {
-                            left = false;
-                            right = true;
-                        }
-                        max => {
-                            left = true;
-                            right = false;
-                        }
-                        _ => {
-                            left = true;
-                            right = true;
-                        }
-                    }
-
-                    if left && top {
-                        if field[i - 1][j - 1] == 'C' {
-                            cow = true;
-                        }
-                    }
-                    if top {
-                        match field[i - 1][j] {
-                            'C' => cow = true,
-                            '@' => hay = true,
-                            '#' => water = true,
-                            _ => panic!(),
-                        }
-                    }
-                    if right && top {
-                        if field[i - 1][j + 1] == 'C' {
-                            cow = true;
-                        }
-                    }
-                    if left {
-                        match field[i][j - 1] {
-                            'C' => cow = true,
-                            '@' => hay = true,
-                            '#' => water = true,
-                            _ => panic!(),
-                        }
-                    }
-                    if right {
-                        match field[i][j + 1] {
-                            'C' => cow = true,
-                            '@' => hay = true,
-                            '#' => water = true,
-                            _ => panic!(),
-                        }
-                    }
-                    if left && bottom {
-                        if field[i + 1][j - 1] == 'C' {
-                            cow = true;
-                        }
-                    }
-                    if bottom {
-                        match field[i + 1][j] {
-                            'C' => cow = true,
-                            '@' => hay = true,
-                            '#' => water = true,
-                            _ => panic!(),
-                        }
-                    }
-                    if right && bottom {
-                        if field[i + 1][j + 1] == 'C' {
-                            cow = true;
-                        }
-                    }
-
-                    if cow {
-                        sum -= 3;
-                    }
-                    if hay {
-                        if water {
-                            sum += 3;
-                        } else {
-                            sum += 1;
-                        }
-                    }
-                }
+                'C' => sum += score_cow(f, i, j),
                 //If not standard symbol, panic
                 _ => panic!(),
             }
         }
     }
-
     sum
 }
 
 //AI code
 
-pub struct Intel {
-
-}
+pub struct Intel {}
 
 impl Intel {
     pub fn random_move(board: &Farm) -> Vec<usize> {
