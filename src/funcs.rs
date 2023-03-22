@@ -203,4 +203,11 @@ impl Intel {
         res.push(rng.gen_range(0..board.size));
         res
     }
+
+    pub fn BFS(board: &Farm) -> Vec<usize> {
+        let best_move: Vec<usize> = Vec::new();
+        let best_score: i32;
+
+        return best_move;
+    }
 }
