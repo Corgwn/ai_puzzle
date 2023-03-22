@@ -59,17 +59,17 @@ impl Farm {
         return true;
     }
 
-    pub fn add_many_cow(&mut self, locs: HashSet<[usize; 2]>) {
+    pub fn add_many_cow(&mut self, locs: &HashSet<[usize; 2]>) {
         //Will assume all moves given to it are valid
         for loc in locs {
-            self.add_cow(loc);
+            self.add_cow(*loc);
         }
     }
 
-    pub fn remove_many_cow(&mut self, locs: HashSet<[usize; 2]>) {
+    pub fn remove_many_cow(&mut self, locs: &HashSet<[usize; 2]>) {
         //Will remove cows from each location given
         for loc in locs {
-            self.remove_cow(loc);
+            self.remove_cow(*loc);
         }
     }
 }
@@ -83,17 +83,16 @@ impl Intel {
         [rng.gen_range(0..board.size), rng.gen_range(0..board.size)]
     }
 
-    pub fn BFS(board: &Farm) -> HashSet<[usize; 2]> {
-        let result: HashSet<[usize; 2]>;
-        let mut past_moves: HashSet<HashSet<[usize; 2]>> = HashSet::new();
+    pub fn BFS(board: Farm) -> HashSet<[usize; 2]> {
+        let mut result: HashSet<[usize; 2]> = HashSet::new();
         let mut frontier: VecDeque<HashSet<[usize; 2]>> = VecDeque::new();
-        let mut test_board = *board.clone();
+        let mut test_board = board.Copy();
 
         frontier.push_back(HashSet::new());
         while frontier.len() > 0{
             //Prepare board for testing
             let mut temp_path = frontier.pop_front().unwrap();
-            test_board.add_many_cow(temp_path);
+            test_board.add_many_cow(&temp_path);
             
             //Test if the popped state fits the goal
             if goal(&test_board){
@@ -104,10 +103,10 @@ impl Intel {
             //Add all neighbors to frontier
             //Finding furthest move from origin
             let mut high_pos = [0, 0];
-            for pos in temp_path {
+            for pos in temp_path.iter() {
                 if pos[0] >= high_pos[0] {
                     if pos[1] > high_pos[1] {
-                        high_pos = pos;
+                        high_pos = *pos;
                     }
                 }
             }
@@ -117,18 +116,14 @@ impl Intel {
                     if i == high_pos[0] && j <= high_pos[1] {
                         continue;
                     }
-                    let mut new_move: HashSet<[usize; 2]> = HashSet::new();
-                    for mov in &temp_path {
-                        new_move.insert([mov[0], mov[1]]);
-                    }
+                    let mut new_move: HashSet<[usize; 2]> = temp_path.clone();
                     new_move.insert([i, j]);
+                    
                     frontier.push_back(new_move);
                 }
             }
-
-
             //Reset board for next iteration
-            test_board.remove_many_cow(temp_path);
+            test_board.remove_many_cow(&temp_path);
         }
         result
     }
@@ -137,7 +132,7 @@ impl Intel {
 //Supporting Functions
 impl fmt::Display for Farm {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mut temp1: String = String::new();
+        let mut temp1 = String::new();
         let mut temp2 = String::new();
         for i in self.field.as_slice() {
             for j in i {
