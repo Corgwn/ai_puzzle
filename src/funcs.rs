@@ -3,12 +3,13 @@ use rand::Rng;
 use std::collections::{HashSet, VecDeque};
 use std::fs::File;
 use std::io::{BufRead, BufReader};
+use std::time::Instant;
 
 //Farm code
 #[derive(Clone)]
 pub struct Farm {
     field: Vec<Vec<char>>,
-    max_cows: usize,
+    pub max_cows: usize,
     _num_cows: usize,
     pub space_left: usize,
     pub size: usize,
@@ -33,7 +34,7 @@ impl Farm {
         true
     }
 
-    pub fn remove_cow(&mut self, loc: [usize; 2]) -> bool {
+    pub fn _remove_cow(&mut self, loc: [usize; 2]) -> bool {
         if self.space_left == self.max_cows {
             return false;
         }
@@ -54,30 +55,32 @@ impl Farm {
         }
     }
 
-    pub fn remove_many_cow(&mut self, locs: &HashSet<[usize; 2]>) {
+    pub fn _remove_many_cow(&mut self, locs: &HashSet<[usize; 2]>) {
         //Will remove cows from each location given
         for loc in locs {
-            self.remove_cow(*loc);
+            self._remove_cow(*loc);
         }
     }
 }
 
 //AI code
+
 pub struct Intel {}
 
+#[allow(dead_code)]
 impl Intel {
-    pub fn _random_move(board: &Farm) -> [usize; 2] {
+    pub fn random_move(board: &Farm) -> [usize; 2] {
         let mut rng = rand::thread_rng();
         [rng.gen_range(0..board.size), rng.gen_range(0..board.size)]
     }
 
-    pub fn _bfs(board: &Farm) -> HashSet<[usize; 2]> {
+    pub fn bfs(board: &Farm) -> HashSet<[usize; 2]> {
+        let now = Instant::now();
         let mut result: HashSet<[usize; 2]> = HashSet::new();
-        let mut frontier: VecDeque<HashSet<[usize; 2]>> = VecDeque::new();
-        let mut test_board = board.clone();
-
-        frontier.push_back(HashSet::new());
+        let mut frontier: VecDeque<HashSet<[usize; 2]>> = VecDeque::from([HashSet::new()]);
+        
         while let Some(temp_path) = frontier.pop_front() {
+            let mut test_board = board.clone();
             test_board.add_many_cow(&temp_path);
 
             //Test if the popped state fits the goal
@@ -90,58 +93,76 @@ impl Intel {
             //Finding furthest move from origin
             let mut high_pos = [0, 0];
             for pos in temp_path.iter() {
-                if pos[0] >= high_pos[0] && pos[1] > high_pos[1] {
+                if pos[0] >= high_pos[0] && pos[1] >= high_pos[1] {
                     high_pos = *pos;
                 }
             }
+            let first_move: bool;
+            if temp_path.len() == 0 {
+                first_move = true;
+            }
+            else {
+                first_move = false;
+            }
+            
+            let field = test_board.get_field();
             //Adding all moves after this move
             for i in high_pos[0]..board.size {
                 for j in 0..board.size {
-                    if i == high_pos[0] && j <= high_pos[1] {
+                    if (!first_move && i == high_pos[0] && j <= high_pos[1]) || (field[i][j] != '.') {
                         continue;
                     }
                     let mut new_move: HashSet<[usize; 2]> = temp_path.clone();
                     new_move.insert([i, j]);
-
                     frontier.push_back(new_move);
                 }
             }
-            //Reset board for next iteration
-            test_board.remove_many_cow(&temp_path);
         }
+
+        println!("Elapsed Time: {} ns", now.elapsed().as_nanos());
         result
     }
 
-    pub fn id_dfs (board: &Farm) -> HashSet<[usize; 2]> {
-        let mut result: HashSet<[usize; 2]> = HashSet::new();
-
-        //Loop to contol length of the paths
-        let mut max_len = 0;
-        'length: while max_len <= board.max_cows{
+    fn bdfs (board: &Farm, depth: usize) -> Option<HashSet<[usize; 2]>> {
             let mut frontier: Vec<HashSet<[usize; 2]>> = vec!(HashSet::new());
-            //Loop for the DFS
+            
             while let Some(temp_path) = frontier.pop() {
                 let mut test_board = board.clone();
                 test_board.add_many_cow(&temp_path);
-
+                
                 //Test if the popped state fits the goal
-                if goal(&test_board) && temp_path.len() == max_len {
-                    result = temp_path;
-                    break 'length;
+                if goal(&test_board) && temp_path.len() == depth {
+                    return Some(temp_path);
+                }
+
+                //If the path is already max length, don't add more child paths
+                if temp_path.len() == depth {
+                    continue;
                 }
 
                 //Add all neighbors to frontier
                 //Finding furthest move from origin
                 let mut high_pos = [0, 0];
                 for pos in temp_path.iter() {
-                    if pos[0] >= high_pos[0] && pos[1] > high_pos[1] {
+                    if pos[0] >= high_pos[0] && pos[1] >= high_pos[1] {
                         high_pos = *pos;
                     }
                 }
+
+                let first_move: bool;
+                if temp_path.len() == 0 {
+                    first_move = true;
+                }
+                else {
+                    first_move = false;
+                }
+                
+
+                let field = test_board.get_field();
                 //Adding all moves after this move
                 for i in high_pos[0]..board.size {
                     for j in 0..board.size {
-                        if i == high_pos[0] && j <= high_pos[1] {
+                        if (!first_move && i == high_pos[0] && j <= high_pos[1]) || (field[i][j] != '.') {
                             continue;
                         }
                         let mut new_move: HashSet<[usize; 2]> = temp_path.clone();
@@ -150,11 +171,20 @@ impl Intel {
                         frontier.push(new_move);
                     }
                 }
-                //Reset board for next iteration
-                test_board.remove_many_cow(&temp_path);
             }
-            max_len += 1;
+        return None;
+    }
+
+    pub fn id_dfs (board: &Farm) -> HashSet<[usize; 2]> {
+        let now = Instant::now();
+        let mut result = HashSet::new();
+        for depth in 1..=board.max_cows {
+            if let Some(temp) = Intel::bdfs(board, depth) {
+                result = temp;
+                break;
+            }
         }
+        println!("Elapsed Time: {} ns", now.elapsed().as_nanos());
         result
     }
 }
