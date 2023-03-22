@@ -1,6 +1,8 @@
 use core::fmt;
 use rand::Rng;
+use std::collections::HashSet;
 use std::fs::File;
+use std::hash::Hash;
 use std::io::{BufRead, BufReader};
 
 //Farm code
@@ -130,18 +132,16 @@ fn score_cow(f: &Farm, r: usize, c: usize) -> i32 {
     let mut cow = false;
     let mut hay = false;
     let mut water = false;
-    let mut offsets: Vec<Vec<i32>> = Vec::new();
-    for i in -1..2 {
-        for j in -1..2 {
-            let mut temp = Vec::new();
-            if i == 0 && j == 0 {
-                continue;
-            }
-            temp.push(i);
-            temp.push(j);
-            offsets.push(temp);
-        }
-    }
+    let mut offsets = [
+        [-1, -1],
+        [-1, 0],
+        [-1, 1],
+        [0, -1],
+        [0, 1],
+        [1, -1],
+        [1, 0],
+        [1, 1],
+    ];
     let field = f.get_field();
     let mut score = 0;
     for offset in offsets {
