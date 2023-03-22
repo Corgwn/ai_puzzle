@@ -123,13 +123,13 @@ impl Intel {
         result
     }
 
-    fn bdfs (board: &Farm, depth: usize) -> Option<HashSet<[usize; 2]>> {
+    fn bdfs(board: &Farm, depth: usize) -> Option<HashSet<[usize; 2]>> {
             let mut frontier: Vec<HashSet<[usize; 2]>> = vec!(HashSet::new());
             
             while let Some(temp_path) = frontier.pop() {
                 let mut test_board = board.clone();
                 test_board.add_many_cow(&temp_path);
-                
+
                 //Test if the popped state fits the goal
                 if goal(&test_board) && temp_path.len() == depth {
                     return Some(temp_path);
@@ -175,7 +175,7 @@ impl Intel {
         return None;
     }
 
-    pub fn id_dfs (board: &Farm) -> HashSet<[usize; 2]> {
+    pub fn id_dfs(board: &Farm) -> HashSet<[usize; 2]> {
         let now = Instant::now();
         let mut result = HashSet::new();
         for depth in 1..=board.max_cows {
