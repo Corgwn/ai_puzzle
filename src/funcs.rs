@@ -146,12 +146,12 @@ fn score_cow(f: &Farm, r: usize, c: usize) -> i32 {
     let mut score = 0;
     for offset in offsets {
         let testx = r as i32 + offset[0];
-        let testy = r as i32 + offset[0];
+        let testy = c as i32 + offset[1];
         if in_bounds(f, testx, testy) {
             if field[testx as usize][testy as usize] == 'C' {
                 cow = true;
             }
-            if (offset[0] == 0 || offset[1] == 0) {
+            if offset[0] == 0 || offset[1] == 0 {
                 if field[testx as usize][testy as usize] == '@' {
                     hay = true;
                 } else if field[testx as usize][testy as usize] == '#' {
@@ -170,7 +170,7 @@ fn score_cow(f: &Farm, r: usize, c: usize) -> i32 {
             score += 1;
         }
     }
-    return score;
+    score
 }
 
 pub fn score_farm(f: &Farm) -> i32 {
