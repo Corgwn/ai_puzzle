@@ -6,6 +6,10 @@ mod funcs;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
+    if args.len() < 3 {
+        println!("Must provide an input and output file (in that order)");
+        return;
+    }
     let mut farm = funcs::read_file(args[1].clone());
 
     //Code for random moves
@@ -13,8 +17,9 @@ fn main() {
     //    farm.add_cow(funcs::Intel::random_move(&farm));
     //}
 
-    //Code for BFS
-    let moves = funcs::Intel::bfs(farm.clone());
+    //Code for intelligent algorithms
+    //let moves = funcs::Intel::bfs(&farm);
+    let moves = funcs::Intel::id_dfs(&farm);
     farm.add_many_cow(&moves);
 
     let mut f = File::create(args[2].clone()).unwrap();

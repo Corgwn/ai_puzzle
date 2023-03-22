@@ -8,9 +8,9 @@ use std::io::{BufRead, BufReader};
 #[derive(Clone)]
 pub struct Farm {
     field: Vec<Vec<char>>,
-    max_cows: i32,
-    _num_cows: i32,
-    pub space_left: i32,
+    max_cows: usize,
+    _num_cows: usize,
+    pub space_left: usize,
     pub size: usize,
 }
 
@@ -71,7 +71,7 @@ impl Intel {
         [rng.gen_range(0..board.size), rng.gen_range(0..board.size)]
     }
 
-    pub fn bfs(board: Farm) -> HashSet<[usize; 2]> {
+    pub fn _bfs(board: &Farm) -> HashSet<[usize; 2]> {
         let mut result: HashSet<[usize; 2]> = HashSet::new();
         let mut frontier: VecDeque<HashSet<[usize; 2]>> = VecDeque::new();
         let mut test_board = board.clone();
@@ -111,6 +111,52 @@ impl Intel {
         }
         result
     }
+
+    pub fn id_dfs (board: &Farm) -> HashSet<[usize; 2]> {
+        let mut result: HashSet<[usize; 2]> = HashSet::new();
+
+        //Loop to contol length of the paths
+        let mut max_len = 0;
+        'length: while max_len <= board.max_cows{
+            let mut frontier: Vec<HashSet<[usize; 2]>> = vec!(HashSet::new());
+            //Loop for the DFS
+            while let Some(temp_path) = frontier.pop() {
+                let mut test_board = board.clone();
+                test_board.add_many_cow(&temp_path);
+
+                //Test if the popped state fits the goal
+                if goal(&test_board) && temp_path.len() == max_len {
+                    result = temp_path;
+                    break 'length;
+                }
+
+                //Add all neighbors to frontier
+                //Finding furthest move from origin
+                let mut high_pos = [0, 0];
+                for pos in temp_path.iter() {
+                    if pos[0] >= high_pos[0] && pos[1] > high_pos[1] {
+                        high_pos = *pos;
+                    }
+                }
+                //Adding all moves after this move
+                for i in high_pos[0]..board.size {
+                    for j in 0..board.size {
+                        if i == high_pos[0] && j <= high_pos[1] {
+                            continue;
+                        }
+                        let mut new_move: HashSet<[usize; 2]> = temp_path.clone();
+                        new_move.insert([i, j]);
+
+                        frontier.push(new_move);
+                    }
+                }
+                //Reset board for next iteration
+                test_board.remove_many_cow(&temp_path);
+            }
+            max_len += 1;
+        }
+        result
+    }
 }
 
 //Supporting Functions
@@ -132,8 +178,8 @@ impl fmt::Display for Farm {
 
 pub fn read_file(path: String) -> Farm {
     let mut field: Vec<Vec<char>> = Vec::new();
-    let mut _num_cows: i32;
-    let mut _space_left: i32;
+    let mut _num_cows: usize;
+    let mut _space_left: usize;
 
     //Read file in
     let file = BufReader::new(File::open(&path).unwrap());
@@ -149,7 +195,7 @@ pub fn read_file(path: String) -> Farm {
     }
 
     //Find max cows
-    let mut temp: i32 = 0;
+    let mut temp: usize = 0;
     for line in field.as_slice() {
         for tile in line {
             if *tile == '@' {
