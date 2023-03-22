@@ -1,12 +1,12 @@
 use core::fmt;
+use std::arch::x86_64::_MM_FROUND_CUR_DIRECTION;
 use rand::Rng;
-use std::collections::HashSet;
+use std::collections::{HashSet, VecDeque};
 use std::fs::File;
 use std::hash::Hash;
 use std::io::{BufRead, BufReader};
 
 //Farm code
-
 pub struct Farm {
     field: Vec<Vec<char>>,
     max_cows: i32,
@@ -31,7 +31,7 @@ impl Farm {
         self.field.clone()
     }
 
-    pub fn add_cow(&mut self, loc: Vec<usize>) -> bool {
+    pub fn add_cow(&mut self, loc: [usize; 2]) -> bool {
         if self.space_left == 0 {
             return false;
         }
@@ -45,7 +45,7 @@ impl Farm {
         return true;
     }
 
-    pub fn remove_cow(&mut self, loc: Vec<usize>) -> bool {
+    pub fn remove_cow(&mut self, loc: [usize; 2]) -> bool {
         if self.space_left == self.max_cows {
             return false;
         }
@@ -58,14 +58,85 @@ impl Farm {
         self.space_left += 1;
         return true;
     }
+
+    pub fn add_many_cow(&mut self, locs: HashSet<[usize; 2]>) {
+        //Will assume all moves given to it are valid
+        for loc in locs {
+            self.add_cow(loc);
+        }
+    }
+
+    pub fn remove_many_cow(&mut self, locs: HashSet<[usize; 2]>) {
+        //Will remove cows from each location given
+        for loc in locs {
+            self.remove_cow(loc);
+        }
+    }
 }
 
+//AI code
+pub struct Intel {}
+
+impl Intel {
+    pub fn random_move(board: &Farm) -> [usize; 2] {
+        let mut rng = rand::thread_rng();
+        [rng.gen_range(0..board.size), rng.gen_range(0..board.size)]
+    }
+
+    pub fn BFS(board: &Farm) -> HashSet<[usize; 2]> {
+        let result: HashSet<[usize; 2]>;
+        let mut past_moves: HashSet<HashSet<[usize; 2]>> = HashSet::new();
+        let mut frontier: VecDeque<HashSet<[usize; 2]>> = VecDeque::new();
+        let mut test_board = *board.clone();
+
+        frontier.push_back(HashSet::new());
+        while frontier.len() > 0{
+            //Prepare board for testing
+            let mut temp_path = frontier.pop_front().unwrap();
+            test_board.add_many_cow(temp_path);
+            
+            //Test if the popped state fits the goal
+            if goal(&test_board){
+                result = temp_path;
+                break;
+            }
+
+            //Add all neighbors to frontier
+            //Finding furthest move from origin
+            let mut high_pos = [0, 0];
+            for pos in temp_path {
+                if pos[0] >= high_pos[0] {
+                    if pos[1] > high_pos[1] {
+                        high_pos = pos;
+                    }
+                }
+            }
+            //Adding all moves after this move
+            for i in high_pos[0]..board.size {
+                for j in 0..board.size {
+                    if i == high_pos[0] && j <= high_pos[1] {
+                        continue;
+                    }
+                    let mut new_move: HashSet<[usize; 2]> = HashSet::new();
+                    for mov in &temp_path {
+                        new_move.insert([mov[0], mov[1]]);
+                    }
+                    new_move.insert([i, j]);
+                    frontier.push_back(new_move);
+                }
+            }
+
+
+            //Reset board for next iteration
+            test_board.remove_many_cow(temp_path);
+        }
+        result
+    }
+}
+
+//Supporting Functions
 impl fmt::Display for Farm {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        // Write strictly the first element into the supplied output
-        // stream: `f`. Returns `fmt::Result` which indicates whether the
-        // operation succeeded or failed. Note that `write!` uses syntax which
-        // is very similar to `println!`.
         let mut temp1: String = String::new();
         let mut temp2 = String::new();
         for i in self.field.as_slice() {
@@ -132,7 +203,7 @@ fn score_cow(f: &Farm, r: usize, c: usize) -> i32 {
     let mut cow = false;
     let mut hay = false;
     let mut water = false;
-    let mut offsets = [
+    let offsets = [
         [-1, -1],
         [-1, 0],
         [-1, 1],
@@ -191,23 +262,9 @@ pub fn score_farm(f: &Farm) -> i32 {
     sum
 }
 
-//AI code
-
-pub struct Intel {}
-
-impl Intel {
-    pub fn random_move(board: &Farm) -> Vec<usize> {
-        let mut rng = rand::thread_rng();
-        let mut res: Vec<usize> = Vec::new();
-        res.push(rng.gen_range(0..board.size));
-        res.push(rng.gen_range(0..board.size));
-        res
+fn goal(board: &Farm) -> bool {
+    if score_farm(board) >= 7 {
+        return true;
     }
-
-    pub fn BFS(board: &Farm) -> Vec<usize> {
-        let best_move: Vec<usize> = Vec::new();
-        let best_score: i32;
-
-        return best_move;
-    }
+    false
 }
