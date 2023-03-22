@@ -1,6 +1,5 @@
 use std::fs::File;
-use std::io::{BufReader, BufRead};
-use std::collections::HashSet;
+use std::io::{BufRead, BufReader};
 
 pub struct Farm {
     field: Vec<Vec<char>>,
@@ -14,10 +13,17 @@ impl Farm {
     pub fn get_field(&self) -> Vec<Vec<char>> {
         self.field.clone()
     }
-    
+
     pub fn add_cow(&mut self, loc: Vec<i32>) -> bool {
-        false
+        match self.field[loc[0 as usize] as usize][loc[1 as usize] as usize] {
+            'C' | '@' | '#' => return false,
+            '.' => {}
+            _ => panic!("Invalid Symbol"),
+        }
+        self.field[loc[0 as usize] as usize][loc[1 as usize] as usize] = 'C';
+        return true;
     }
+
     pub fn remove_cow(&mut self, loc: Vec<i32>) -> bool {
         false
     }
@@ -30,7 +36,7 @@ pub fn read_file(path: String) -> Farm {
     let mut num_cows: i32;
     let mut space_left: i32;
     let size: usize;
-    
+
     //Read file in
     let file = BufReader::new(File::open(&path).unwrap());
     let mut lines: Vec<_> = file.lines().collect();
@@ -38,7 +44,7 @@ pub fn read_file(path: String) -> Farm {
     //Set the size
     size = lines[0].as_ref().unwrap().parse::<i32>().unwrap() as usize;
     lines.remove(0);
-    
+
     //Build the field from the given input file
     for line in lines {
         field.push(line.as_ref().unwrap().chars().collect::<Vec<char>>());
@@ -55,7 +61,13 @@ pub fn read_file(path: String) -> Farm {
     }
     max_cows = temp;
 
-    let farm = Farm {field: field, max_cows: max_cows, num_cows: 0, space_left: max_cows, size: size};
+    let farm = Farm {
+        field: field,
+        max_cows: max_cows,
+        num_cows: 0,
+        space_left: max_cows,
+        size: size,
+    };
     farm
 }
 
@@ -69,23 +81,106 @@ pub fn score_farm(f: Farm) -> i32 {
                 '.' | '@' | '#' => continue,
                 //If cow, get score for this cow
                 'C' => {
-                    let mut set = HashSet::new();
-                    
-                    //TODO: This needs logic for handling the edges of the field
-                    set.insert(field[i][(j + 1)]);
-                    set.insert(field[i][(j - 1)]);
-                    set.insert(field[(i + 1)][j]);
-                    set.insert(field[(i - 1)][j]);
-                    if set.contains(&'@') {
-                        if set.contains(&'#') {
-                            sum += 3;
+                    let right: bool;
+                    let left: bool;
+                    let top: bool;
+                    let bottom: bool;
+                    let max: usize = f.size - 1;
+                    let mut cow: bool = false;
+                    let mut hay: bool = false;
+                    let mut water: bool = false;
+
+                    match i {
+                        0 => {
+                            top = false;
+                            bottom = true;
                         }
-                        else {
-                            sum += 1;
+                        max => {
+                            top = true;
+                            bottom = false;
+                        }
+                        _ => {
+                            top = true;
+                            bottom = true;
                         }
                     }
-                    if set.contains(&'C') {
+                    match j {
+                        0 => {
+                            left = false;
+                            right = true;
+                        }
+                        max => {
+                            left = true;
+                            right = false;
+                        }
+                        _ => {
+                            left = true;
+                            right = true;
+                        }
+                    }
+
+                    if left && top {
+                        if field[i - 1][j - 1] == 'C' {
+                            cow = true;
+                        }
+                    }
+                    if top {
+                        match field[i - 1][j] {
+                            'C' => cow = true,
+                            '@' => hay = true,
+                            '#' => water = true,
+                            _ => panic!(),
+                        }
+                    }
+                    if right && top {
+                        if field[i - 1][j + 1] == 'C' {
+                            cow = true;
+                        }
+                    }
+                    if left {
+                        match field[i][j - 1] {
+                            'C' => cow = true,
+                            '@' => hay = true,
+                            '#' => water = true,
+                            _ => panic!(),
+                        }
+                    }
+                    if right {
+                        match field[i][j + 1] {
+                            'C' => cow = true,
+                            '@' => hay = true,
+                            '#' => water = true,
+                            _ => panic!(),
+                        }
+                    }
+                    if left && bottom {
+                        if field[i + 1][j - 1] == 'C' {
+                            cow = true;
+                        }
+                    }
+                    if bottom {
+                        match field[i + 1][j] {
+                            'C' => cow = true,
+                            '@' => hay = true,
+                            '#' => water = true,
+                            _ => panic!(),
+                        }
+                    }
+                    if right && bottom {
+                        if field[i + 1][j + 1] == 'C' {
+                            cow = true;
+                        }
+                    }
+
+                    if cow {
                         sum -= 3;
+                    }
+                    if hay {
+                        if water {
+                            sum += 3;
+                        } else {
+                            sum += 1;
+                        }
                     }
                 }
                 //If not standard symbol, panic
