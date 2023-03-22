@@ -1,32 +1,20 @@
 use core::fmt;
-use std::arch::x86_64::_MM_FROUND_CUR_DIRECTION;
 use rand::Rng;
 use std::collections::{HashSet, VecDeque};
 use std::fs::File;
-use std::hash::Hash;
 use std::io::{BufRead, BufReader};
 
 //Farm code
+#[derive(Clone)]
 pub struct Farm {
     field: Vec<Vec<char>>,
     max_cows: i32,
-    num_cows: i32,
+    _num_cows: i32,
     pub space_left: i32,
     pub size: usize,
 }
 
 impl Farm {
-    pub fn Copy(&self) -> Farm {
-        let new = Farm {
-            field: self.field.clone(),
-            max_cows: self.max_cows,
-            num_cows: self.num_cows,
-            space_left: self.space_left,
-            size: self.size,
-        };
-        new
-    }
-
     pub fn get_field(&self) -> Vec<Vec<char>> {
         self.field.clone()
     }
@@ -35,28 +23,28 @@ impl Farm {
         if self.space_left == 0 {
             return false;
         }
-        match self.field[loc[0 as usize]][loc[1 as usize]] {
+        match self.field[loc[0_usize]][loc[1_usize]] {
             'C' | '@' | '#' => return false,
             '.' => {}
             _ => panic!("Invalid Symbol"),
         }
-        self.field[loc[0 as usize]][loc[1 as usize]] = 'C';
+        self.field[loc[0_usize]][loc[1_usize]] = 'C';
         self.space_left -= 1;
-        return true;
+        true
     }
 
     pub fn remove_cow(&mut self, loc: [usize; 2]) -> bool {
         if self.space_left == self.max_cows {
             return false;
         }
-        match self.field[loc[0 as usize]][loc[1 as usize]] {
+        match self.field[loc[0_usize]][loc[1_usize]] {
             '.' | '@' | '#' => return false,
             'C' => {}
             _ => panic!("Invalid Symbol"),
         }
-        self.field[loc[0 as usize]][loc[1 as usize]] = '.';
+        self.field[loc[0_usize]][loc[1_usize]] = '.';
         self.space_left += 1;
-        return true;
+        true
     }
 
     pub fn add_many_cow(&mut self, locs: &HashSet<[usize; 2]>) {
@@ -78,24 +66,22 @@ impl Farm {
 pub struct Intel {}
 
 impl Intel {
-    pub fn random_move(board: &Farm) -> [usize; 2] {
+    pub fn _random_move(board: &Farm) -> [usize; 2] {
         let mut rng = rand::thread_rng();
         [rng.gen_range(0..board.size), rng.gen_range(0..board.size)]
     }
 
-    pub fn BFS(board: Farm) -> HashSet<[usize; 2]> {
+    pub fn bfs(board: Farm) -> HashSet<[usize; 2]> {
         let mut result: HashSet<[usize; 2]> = HashSet::new();
         let mut frontier: VecDeque<HashSet<[usize; 2]>> = VecDeque::new();
-        let mut test_board = board.Copy();
+        let mut test_board = board.clone();
 
         frontier.push_back(HashSet::new());
-        while frontier.len() > 0{
-            //Prepare board for testing
-            let mut temp_path = frontier.pop_front().unwrap();
+        while let Some(temp_path) = frontier.pop_front() {
             test_board.add_many_cow(&temp_path);
-            
+
             //Test if the popped state fits the goal
-            if goal(&test_board){
+            if goal(&test_board) {
                 result = temp_path;
                 break;
             }
@@ -104,10 +90,8 @@ impl Intel {
             //Finding furthest move from origin
             let mut high_pos = [0, 0];
             for pos in temp_path.iter() {
-                if pos[0] >= high_pos[0] {
-                    if pos[1] > high_pos[1] {
-                        high_pos = *pos;
-                    }
+                if pos[0] >= high_pos[0] && pos[1] > high_pos[1] {
+                    high_pos = *pos;
                 }
             }
             //Adding all moves after this move
@@ -118,7 +102,7 @@ impl Intel {
                     }
                     let mut new_move: HashSet<[usize; 2]> = temp_path.clone();
                     new_move.insert([i, j]);
-                    
+
                     frontier.push_back(new_move);
                 }
             }
@@ -148,18 +132,16 @@ impl fmt::Display for Farm {
 
 pub fn read_file(path: String) -> Farm {
     let mut field: Vec<Vec<char>> = Vec::new();
-    let max_cows: i32;
-    let mut num_cows: i32;
-    let mut space_left: i32;
-    let size: usize;
+    let mut _num_cows: i32;
+    let mut _space_left: i32;
 
     //Read file in
     let file = BufReader::new(File::open(&path).unwrap());
     let mut lines: Vec<_> = file.lines().collect();
 
     //Set the size
-    size = lines[0].as_ref().unwrap().parse::<i32>().unwrap() as usize;
-    lines.remove(0);
+    let size = lines[0].as_ref().unwrap().parse::<i32>().unwrap() as usize;
+    lines.remove(0).unwrap();
 
     //Build the field from the given input file
     for line in lines {
@@ -171,27 +153,26 @@ pub fn read_file(path: String) -> Farm {
     for line in field.as_slice() {
         for tile in line {
             if *tile == '@' {
-                temp = temp + 1;
+                temp += 1;
             }
         }
     }
-    max_cows = temp;
+    let max_cows = temp;
 
-    let farm = Farm {
-        field: field,
-        max_cows: max_cows,
-        num_cows: 0,
+    Farm {
+        field,
+        max_cows,
+        _num_cows: 0,
         space_left: max_cows,
-        size: size,
-    };
-    farm
+        size,
+    }
 }
 
 fn in_bounds(f: &Farm, r: i32, c: i32) -> bool {
     if r < 0 || r >= f.size as i32 || c < 0 || c >= f.size as i32 {
         return false;
     }
-    return true;
+    true
 }
 
 fn score_cow(f: &Farm, r: usize, c: usize) -> i32 {
@@ -242,9 +223,9 @@ fn score_cow(f: &Farm, r: usize, c: usize) -> i32 {
 pub fn score_farm(f: &Farm) -> i32 {
     let mut sum = 0;
     let field = f.get_field();
-    for i in 0..f.size {
-        for j in 0..f.size {
-            match field[i][j] {
+    for (i, row) in field.iter().enumerate() {
+        for (j, elem) in row.iter().enumerate() {
+            match elem {
                 //If grass, water, or hay move on
                 '.' | '@' | '#' => continue,
                 //If cow, get score for this cow

@@ -7,11 +7,18 @@ mod funcs;
 fn main() {
     let args: Vec<String> = env::args().collect();
     let mut farm = funcs::read_file(args[1].clone());
-    while farm.space_left > 0 {
-        farm.add_cow(funcs::Intel::random_move(&farm));
-    }
+
+    //Code for random moves
+    //while farm.space_left > 0 {
+    //    farm.add_cow(funcs::Intel::random_move(&farm));
+    //}
+
+    //Code for BFS
+    let moves = funcs::Intel::bfs(farm.clone());
+    farm.add_many_cow(&moves);
+
     let mut f = File::create(args[2].clone()).unwrap();
-    write!(f, "{}\n", farm.size);
-    write!(f, "{}", farm);
-    write!(f, "{}\n", funcs::score_farm(&farm));
+    writeln!(f, "{}", farm.size).unwrap();
+    write!(f, "{}", farm).unwrap();
+    writeln!(f, "{}", funcs::score_farm(&farm)).unwrap();
 }
