@@ -1,12 +1,14 @@
 use core::fmt;
+use std::cmp::Ordering;
 use rand::Rng;
-use std::collections::{HashSet, VecDeque};
+use std::collections::{HashSet, VecDeque, BinaryHeap};
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::time::Instant;
+use std::rc::Rc;
 
 //Farm code
-#[derive(Clone)]
+#[derive(Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
 pub struct Farm {
     field: Vec<Vec<char>>,
     pub max_cows: usize,
@@ -84,7 +86,7 @@ impl Intel {
             test_board.add_many_cow(&temp_path);
 
             //Test if the popped state fits the goal
-            if goal(&test_board) {
+            if goal(&test_board, 7) {
                 result = temp_path;
                 break;
             }
@@ -131,7 +133,7 @@ impl Intel {
                 test_board.add_many_cow(&temp_path);
 
                 //Test if the popped state fits the goal
-                if goal(&test_board) && temp_path.len() == depth {
+                if goal(&test_board, 7) && temp_path.len() == depth {
                     return Some(temp_path);
                 }
 
@@ -184,6 +186,55 @@ impl Intel {
                 break;
             }
         }
+        println!("Elapsed Time: {} ns", now.elapsed().as_nanos());
+        result
+    }
+
+    pub fn best_fs(board: &Farm) -> HashSet<[usize; 2]> {
+        let now = Instant::now();
+        let mut result: HashSet<[usize; 2]> = HashSet::new();
+        let mut frontier: BinaryHeap<HashSet<Move>> = BinaryHeap::from([HashSet::new()]);
+        
+        while let Some(temp_path) = frontier.pop_front() {
+            let mut test_board = board.clone();
+            test_board.add_many_cow(&temp_path);
+
+            //Test if the popped state fits the goal
+            if goal(&test_board, 7) {
+                result = temp_path;
+                break;
+            }
+
+            //Add all neighbors to frontier
+            //Finding furthest move from origin
+            let mut high_pos = [0, 0];
+            for pos in temp_path.iter() {
+                if pos[0] >= high_pos[0] && pos[1] >= high_pos[1] {
+                    high_pos = *pos;
+                }
+            }
+            let first_move: bool;
+            if temp_path.len() == 0 {
+                first_move = true;
+            }
+            else {
+                first_move = false;
+            }
+            
+            let field = test_board.get_field();
+            //Adding all moves after this move
+            for i in high_pos[0]..board.size {
+                for j in 0..board.size {
+                    if (!first_move && i == high_pos[0] && j <= high_pos[1]) || (field[i][j] != '.') {
+                        continue;
+                    }
+                    let mut new_move: HashSet<[usize; 2]> = temp_path.clone();
+                    new_move.insert([i, j]);
+                    frontier.push(new_move);
+                }
+            }
+        }
+
         println!("Elapsed Time: {} ns", now.elapsed().as_nanos());
         result
     }
@@ -314,9 +365,32 @@ pub fn score_farm(f: &Farm) -> i32 {
     sum
 }
 
-fn goal(board: &Farm) -> bool {
-    if score_farm(board) >= 7 {
+fn goal(board: &Farm, value: i32) -> bool {
+    if score_farm(board) >= value {
         return true;
     }
     false
+}
+
+impl Ord for Move {
+    fn cmp(&self, other: &Self) -> Ordering {
+        let temp = other.board.clone();
+        temp.add_many_cow(&other.moves);
+        let temp2 = self.board.clone();
+        temp2.add_many_cow(&self.moves);
+        score_farm(&temp).cmp(&score_farm(&temp2))
+            .then_with(|| self.moves.len().cmp(&other.moves.len()))
+    }
+}
+
+impl PartialOrd for Move {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct Move {
+    moves: HashSet<[usize; 2]>,
+    board: Rc<Farm>,
 }
