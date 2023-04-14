@@ -5,14 +5,12 @@ use std::collections::{HashSet, VecDeque, BinaryHeap};
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::time::Instant;
-use std::rc::Rc;
 
 //Farm code
-#[derive(Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Farm {
     field: Vec<Vec<char>>,
     pub max_cows: usize,
-    _num_cows: usize,
     pub space_left: usize,
     pub size: usize,
 }
@@ -133,7 +131,7 @@ impl Intel {
                 test_board.add_many_cow(&temp_path);
 
                 //Test if the popped state fits the goal
-                if goal(&test_board, 7) && temp_path.len() == depth {
+                if temp_path.len() == depth && goal(&test_board, 7) {
                     return Some(temp_path);
                 }
 
@@ -190,51 +188,43 @@ impl Intel {
         result
     }
 
-    pub fn best_fs(board: &Farm) -> HashSet<[usize; 2]> {
+    pub fn best_fs(board: Farm) -> HashSet<[usize; 2]> {
         let now = Instant::now();
         let mut result: HashSet<[usize; 2]> = HashSet::new();
-        let mut frontier: BinaryHeap<HashSet<Move>> = BinaryHeap::from([HashSet::new()]);
+        let mut frontier: BinaryHeap<Move> = BinaryHeap::new();
+        let mut checked_boards = vec![];
+        frontier.push(Move {moves: HashSet::new(), board: board.clone()});
         
-        while let Some(temp_path) = frontier.pop_front() {
+        while let Some(test_path) = frontier.pop() {
             let mut test_board = board.clone();
-            test_board.add_many_cow(&temp_path);
+            test_board.add_many_cow(&test_path.moves);
+
+            let test_field = test_board.get_field();
+            if checked_boards.contains(&test_field) {
+                continue;
+            }
 
             //Test if the popped state fits the goal
-            if goal(&test_board, 7) {
-                result = temp_path;
+            if test_board.space_left == 0 && goal(&test_board, 12) {
+                result = test_path.moves;
                 break;
             }
 
+            checked_boards.push(test_field);
+
             //Add all neighbors to frontier
-            //Finding furthest move from origin
-            let mut high_pos = [0, 0];
-            for pos in temp_path.iter() {
-                if pos[0] >= high_pos[0] && pos[1] >= high_pos[1] {
-                    high_pos = *pos;
-                }
-            }
-            let first_move: bool;
-            if temp_path.len() == 0 {
-                first_move = true;
-            }
-            else {
-                first_move = false;
-            }
-            
-            let field = test_board.get_field();
-            //Adding all moves after this move
-            for i in high_pos[0]..board.size {
-                for j in 0..board.size {
-                    if (!first_move && i == high_pos[0] && j <= high_pos[1]) || (field[i][j] != '.') {
-                        continue;
+            let size = test_board.size;
+            for i in 0..size {
+                for j in 0..size {
+                    if test_board.get_field()[i][j] == '.'{
+                        let mut new_move: HashSet<[usize; 2]> = test_path.moves.clone();
+                        new_move.insert([i, j]);
+                        //println!("Adding move {:?} to the frontier", new_move);
+                        frontier.push(Move {moves: new_move, board: test_board.clone()});
                     }
-                    let mut new_move: HashSet<[usize; 2]> = temp_path.clone();
-                    new_move.insert([i, j]);
-                    frontier.push(new_move);
                 }
             }
         }
-
         println!("Elapsed Time: {} ns", now.elapsed().as_nanos());
         result
     }
@@ -264,20 +254,19 @@ pub fn read_file(path: String) -> Farm {
 
     //Read file in
     let file = BufReader::new(File::open(&path).unwrap());
-    let mut lines: Vec<_> = file.lines().collect();
+    let mut lines = file.lines();
 
     //Set the size
-    let size = lines[0].as_ref().unwrap().parse::<i32>().unwrap() as usize;
-    lines.remove(0).unwrap();
+    let size: usize = lines.next().expect("Must contain at least one line").expect("Line must contain a value").trim().parse().unwrap();
 
     //Build the field from the given input file
-    for line in lines {
-        field.push(line.as_ref().unwrap().chars().collect::<Vec<char>>());
+    while let Some(line) = lines.next() {
+        field.push(line.unwrap().trim().chars().collect::<Vec<char>>());
     }
 
     //Find max cows
     let mut temp: usize = 0;
-    for line in field.as_slice() {
+    for line in field.iter() {
         for tile in line {
             if *tile == '@' {
                 temp += 1;
@@ -289,7 +278,6 @@ pub fn read_file(path: String) -> Farm {
     Farm {
         field,
         max_cows,
-        _num_cows: 0,
         space_left: max_cows,
         size,
     }
@@ -374,11 +362,7 @@ fn goal(board: &Farm, value: i32) -> bool {
 
 impl Ord for Move {
     fn cmp(&self, other: &Self) -> Ordering {
-        let temp = other.board.clone();
-        temp.add_many_cow(&other.moves);
-        let temp2 = self.board.clone();
-        temp2.add_many_cow(&self.moves);
-        score_farm(&temp).cmp(&score_farm(&temp2))
+        score_farm(&self.board).cmp(&score_farm(&other.board))
             .then_with(|| self.moves.len().cmp(&other.moves.len()))
     }
 }
@@ -390,7 +374,7 @@ impl PartialOrd for Move {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-struct Move {
-    moves: HashSet<[usize; 2]>,
-    board: Rc<Farm>,
+pub struct Move {
+    pub moves: HashSet<[usize; 2]>,
+    pub board: Farm,
 }

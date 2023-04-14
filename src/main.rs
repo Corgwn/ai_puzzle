@@ -11,7 +11,7 @@ fn main() {
         return;
     }
     let mut farm = funcs::read_file(args[1].clone());
-
+    
     //Code for random moves
     //while farm.space_left > 0 {
     //    farm.add_cow(funcs::Intel::random_move(&farm));
@@ -19,7 +19,8 @@ fn main() {
 
     //Code for intelligent algorithms
     //let moves = funcs::Intel::bfs(&farm);
-    let moves = funcs::Intel::id_dfs(&farm);
+    //let moves = funcs::Intel::id_dfs(&farm);
+    let moves = funcs::Intel::best_fs(farm.clone());
     farm.add_many_cow(&moves);
 
     let mut f = File::create(args[2].clone()).unwrap();
