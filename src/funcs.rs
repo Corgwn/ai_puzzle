@@ -34,7 +34,7 @@ impl Farm {
         true
     }
 
-    pub fn _remove_cow(&mut self, loc: [usize; 2]) -> bool {
+    pub fn remove_cow(&mut self, loc: [usize; 2]) -> bool {
         if self.space_left == self.max_cows {
             return false;
         }
@@ -58,7 +58,7 @@ impl Farm {
     pub fn _remove_many_cow(&mut self, locs: &HashSet<[usize; 2]>) {
         //Will remove cows from each location given
         for loc in locs {
-            self._remove_cow(*loc);
+            self.remove_cow(*loc);
         }
     }
 }
@@ -198,7 +198,7 @@ impl Intel {
         while let Some(test_path) = frontier.pop() {
             let mut test_board = board.clone();
             test_board.add_many_cow(&test_path.moves);
-
+            println!("{:?}", test_path);
             let test_field = test_board.get_field();
             if checked_boards.contains(&test_field) {
                 continue;
@@ -216,11 +216,13 @@ impl Intel {
             let size = test_board.size;
             for i in 0..size {
                 for j in 0..size {
-                    if test_board.get_field()[i][j] == '.'{
+                    if test_board.get_field()[i][j] == '.' && test_path.moves.len() < test_board.max_cows {
                         let mut new_move: HashSet<[usize; 2]> = test_path.moves.clone();
                         new_move.insert([i, j]);
                         //println!("Adding move {:?} to the frontier", new_move);
-                        frontier.push(Move {moves: new_move, score: score_farm(&test_board)});
+                        let mut temp_board = test_board.clone();
+                        temp_board.add_cow([i, j]);
+                        frontier.push(Move {moves: new_move, score: score_farm(&temp_board)});
                     }
                 }
             }
@@ -362,7 +364,7 @@ fn goal(board: &Farm, value: i32) -> bool {
 
 impl Ord for Move {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.score.cmp(&self.score)
+        self.score.cmp(&other.score)
             .then_with(|| self.moves.len().cmp(&other.moves.len()))
     }
 }
