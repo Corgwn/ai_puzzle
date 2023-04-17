@@ -193,7 +193,7 @@ impl Intel {
         let mut result: HashSet<[usize; 2]> = HashSet::new();
         let mut frontier: BinaryHeap<Move> = BinaryHeap::new();
         let mut checked_boards = vec![];
-        frontier.push(Move {moves: HashSet::new(), board: board.clone()});
+        frontier.push(Move {moves: HashSet::new(), score: 0});
         
         while let Some(test_path) = frontier.pop() {
             let mut test_board = board.clone();
@@ -220,7 +220,7 @@ impl Intel {
                         let mut new_move: HashSet<[usize; 2]> = test_path.moves.clone();
                         new_move.insert([i, j]);
                         //println!("Adding move {:?} to the frontier", new_move);
-                        frontier.push(Move {moves: new_move, board: test_board.clone()});
+                        frontier.push(Move {moves: new_move, score: score_farm(&test_board)});
                     }
                 }
             }
@@ -362,7 +362,7 @@ fn goal(board: &Farm, value: i32) -> bool {
 
 impl Ord for Move {
     fn cmp(&self, other: &Self) -> Ordering {
-        score_farm(&self.board).cmp(&score_farm(&other.board))
+        self.score.cmp(&self.score)
             .then_with(|| self.moves.len().cmp(&other.moves.len()))
     }
 }
@@ -376,5 +376,5 @@ impl PartialOrd for Move {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Move {
     pub moves: HashSet<[usize; 2]>,
-    pub board: Farm,
+    pub score: i32,
 }
